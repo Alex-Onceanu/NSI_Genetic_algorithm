@@ -1,52 +1,17 @@
-from math import sin
+from math import sqrt
+from random import randint
 
+def Equilibrer_pourcentages(a,b,c,d,e) -> tuple:
+    #Renvoie des pourcentages équilibrés de sorte a ce que leur somme soit de 100%
+    #C'est un produit en croix.
+    ref = a + b + c + d + e
+    if ref == 0: return (20,20,20,20,20)
+    return (int(a * 100/ref), int(b * 100/ref), int(c * 100/ref), int(d * 100/ref), int(e*100/ref))
 
-def Polynome(x):
-    return (sin(x)*127)
+def Collision(a,b) -> bool:
+    return a.left < b.right and a.right > b.left and a.bottom > b.top and a.top < b.bottom
 
-class Noeud:
-    def __init__(self, contenu_, suivant_) -> None:
-        self.contenu = contenu_
-        self.suivant =  suivant_
-
-class File:
-    def __init__(self) -> None:
-        self.tete = None
-        self.queue = None
-    
-    def est_vide(self) -> bool:
-        return self.tete is None
-
-    def Enfiler(self, val) -> None:
-        tmp = Noeud(val, None)
-
-        if self.est_vide():
-            self.tete = tmp
-        else:
-            self.queue.suivant = tmp
-
-        self.queue = tmp
-
-    def Defiler(self):
-        if self.est_vide():
-            return None
-
-        tmp = self.tete.contenu
-        self.tete = self.tete.suivant
-
-        if self.est_vide():
-            self.queue = None
-
-        return tmp
-
-    def __len__(self) -> int:
-        AUX = File()
-        compt = 0
-        while not self.est_vide():
-            tmp = self.Defiler()
-            AUX.Enfiler(tmp)
-            compt += 1
-        while not AUX.est_vide():
-            tmp = AUX.Defiler()
-            self.Enfiler(tmp)
-        return compt
+def Distance_rects(a,b) -> int:
+    #Distance geometrique entre les centres de deux rects
+    if Collision(a,b): return 0
+    return sqrt((b.center[0] - a.center[0])**2 + (b.center[1] - a.center[1])**2)
