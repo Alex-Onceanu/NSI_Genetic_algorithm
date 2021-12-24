@@ -13,5 +13,12 @@ def Collision(a,b) -> bool:
 
 def Distance_rects(a,b) -> int:
     #Distance geometrique entre les centres de deux rects
-    if Collision(a,b): return 0
-    return sqrt((b.center[0] - a.center[0])**2 + (b.center[1] - a.center[1])**2)
+    #if Collision(a,b): return 0
+    return sqrt((b.centerx - a.centerx)**2 + (b.centery - a.centery)**2)
+
+def Clamp(v, v_min, v_max):
+    if v < v_min:
+        return v_min
+    if v > v_max:
+        return v_max
+    return v 

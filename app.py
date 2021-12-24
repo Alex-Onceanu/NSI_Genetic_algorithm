@@ -16,7 +16,7 @@ class App:
 
     def boucle(self) -> None:
         while self.doit_continuer:
-            for _ in range(self.FPS * 15):
+            for _ in range(self.FPS * 10):
                 if not self.doit_continuer: break
 
                 self.monde.Gerer_Evenements(self.Demande_Evenements())

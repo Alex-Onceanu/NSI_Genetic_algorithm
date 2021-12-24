@@ -1,13 +1,17 @@
 import pygame
-from random import randint 
-from ModuleUtile import Equilibrer_pourcentages
+from random import randint
+
+from pygame import math 
+from ModuleUtile import Clamp, Equilibrer_pourcentages
 from resolution import RESOLUTION_X, RESOLUTION_Y
+from neurone import Neurone
 class Individu:
-    def __init__(self, __p_gauche:int, __p_droite:int, __p_haut:int, __p_bas:int, __p_stop:int, __vitesse_max:int, __taux_decision:int, __couleur:tuple) -> None:
-        self.p_gauche, self.p_droite, self.p_haut, self.p_bas, self.p_stop = Equilibrer_pourcentages(__p_gauche,__p_droite,__p_haut,__p_bas,__p_stop)
-        self.vitesse_max = __vitesse_max
-        self.taux_decision = __taux_decision
+    def __init__(self, __neurone_horizontal:Neurone, __neurone_vertical:Neurone, __couleur:tuple) -> None:
+        self.vitesse_max = 2
         self.couleur = __couleur
+
+        self.neurone_horizontal = __neurone_horizontal
+        self.neurone_vertical = __neurone_vertical
 
         self.rect = pygame.Rect(200,384,18,18)
         self.vitesse:list = [0,0]
@@ -15,60 +19,52 @@ class Individu:
 
         self.mort = False
 
-    def Cloner(self):
-        return Individu(self.p_gauche,self.p_droite,self.p_haut,self.p_bas,self.p_stop,self.vitesse_max,self.taux_decision,self.couleur)
+    def Mise_A_Jour(self, pos_zone_victoire_x:int, pos_zone_victoire_y:int, touche_victoire:bool) -> None:
+        self.__Decision(pos_zone_victoire_x, pos_zone_victoire_y, touche_victoire)
 
-    def Vitesse_Pour_Direction(self, direction:int) -> None:
-        if direction == 0:
-            self.vitesse = [0,0]
-            return
-        if direction == 1 or direction == 3:
-            self.vitesse[int(direction > 2)] = -self.vitesse_max
-            return
-        self.vitesse[int(direction > 2)] = self.vitesse_max
-
-    def Decision(self) -> None:
-        de = randint(0,100)
-        probas = [self.p_stop, self.p_gauche, self.p_droite, self.p_haut, self.p_bas]
-        decroissant = sorted(probas, reverse=True)
-        for i in decroissant:
-            if de <= i:
-                self.Vitesse_Pour_Direction(probas.index(i))
-                return None
-            de -= i
-        return None
-
-    def Mise_A_Jour(self) -> None:
-        self.compteur_decision -= 1
-        if self.compteur_decision <= 0:
-            self.compteur_decision = self.taux_decision
-            self.vitesse = [0,0]
-            self.Decision()
-            self.Decision()
-
+        
         self.rect.left += self.vitesse[0]
         self.rect.top += self.vitesse[1]
-        self.clampBorder()
+        #self.__clampBorder()
 
-    def clampBorder2(self) -> None:
+    def Afficher(self, fenetre) -> None:
+        pygame.draw.rect(fenetre, self.couleur, self.rect, width= 0)
+#________________________________privé________________________________________________
+
+    def map_val (self, val, max_val) :
+        return 2 * val / max_val - 1
+
+    def __Decision(self, pos_zone_victoire_x:int, pos_zone_victoire_y:int, touche_victoire:bool) -> tuple:
+        
+        donnees:list = [self.rect.centerx, 
+                        self.rect.centery, 
+                        self.vitesse[0] / self.vitesse_max,
+                        self.vitesse[1] / self.vitesse_max,
+                        pos_zone_victoire_x,
+                        pos_zone_victoire_y,
+                        int(touche_victoire)]
+        
+
+        activation = self.neurone_horizontal.Activation(donnees)
+        self.vitesse[0] += activation
+        self.vitesse[0] = Clamp(self.vitesse[0], -self.vitesse_max, self.vitesse_max)
+
+        activation = self.neurone_vertical.Activation(donnees)
+        self.vitesse[1] += activation
+        self.vitesse[1] = Clamp(self.vitesse[1], -self.vitesse_max, self.vitesse_max)
+
+
+
+    def __clampBorder2(self) -> None:
         if self.rect.right < 0 or self.rect.left > RESOLUTION_X() or self.rect.bottom < 0 or self.rect.top > RESOLUTION_Y():
             self.mort = True
 
-    def clampBorder(self) -> None:
+    def __clampBorder2(self) -> None:
         if self.rect.left <= 0 or self.rect.right >= RESOLUTION_X() or self.rect.top <= 0 or self.rect.bottom >= RESOLUTION_Y():
             self.rect.left -= self.vitesse[0]
             self.rect.top -= self.vitesse[1]
 
-    def clampBorder2(self):
-        if self.rect.left < 0:
-            self.rect.left = RESOLUTION_X() - self.rect.width
-        if self.rect.right > RESOLUTION_X():
-            self.rect.left = 0
-        if self.rect.top < 0:
-            self.rect.top = RESOLUTION_Y() - self.rect.height
-        if self.rect.bottom > RESOLUTION_Y():
-            self.rect.top = 0
-
-    def Afficher(self, fenetre) -> None:
-        pygame.draw.rect(fenetre, self.couleur, self.rect, width= 0)
     
+    
+    def Cloner(self):
+        return Individu(self.neurone_horizontal.Cloner(), self.neurone_vertical.Cloner(), self.couleur)

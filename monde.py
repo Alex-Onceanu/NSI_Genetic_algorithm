@@ -1,6 +1,8 @@
 from random import randint
+from random import uniform
 
 import pygame
+from neurone import Neurone
 
 from noeud_file import File
 from ModuleUtile import Collision, Distance_rects
@@ -13,44 +15,44 @@ class Monde:
         self.police_ecriture = pygame.font.SysFont(None,48)
         self.police_chrono = pygame.font.SysFont(None,72)
 
-        self.population = File()
-        self.nb_individus_ref = 100
+        self.nb_individus_ref = 1000
         self.nb_individus = self.nb_individus_ref
-        
-        for _ in range(self.nb_individus):
-            p = Individu(randint(0,100), randint(0,100), randint(0,100), randint(0,100), randint(0,100), randint(1,4), randint(20,60),(randint(0,255),randint(0,255),randint(0,255)))
-            self.population.Enfiler(p)
 
-        self.chrono_generation = 0
+        #Création de la file de population dans la fonction __Reset()    
+        self.__Reset()
+        
         self.affichage_chrono = None
         self.nb_gagnants = 0
         self.affichage_gagnants = None
-        self.generation = 1
         self.affichage_generation = None
-        self.montrer_que_le_meilleur = False
-        self.affichage_montrer_que_le_meilleur = None
+        self.montrer_que_le_meilleur:bool = False
+        self.affichage_montrer_que_le_meilleur = self.police_ecriture.render("Montrer que le meilleur",True,(255,0,0))
 
-        self.zone_victoire = pygame.Rect(400, 200, 136,136)
+        self.zone_victoire = pygame.Rect(randint(0,RESOLUTION_X()-236), randint(0,RESOLUTION_Y()-236), 236,236)
+        self.suivre_curseur = False
 
     def Gerer_Evenements(self, evenements:tuple) -> None:
         for evenement in evenements[1]:
             if evenement.type == pygame.KEYDOWN and evenement.key == pygame.K_w:
                 self.montrer_que_le_meilleur = not self.montrer_que_le_meilleur
+            if evenement.type == pygame.KEYDOWN and evenement.key == pygame.K_r:
+                self.suivre_curseur = not self.suivre_curseur
+                self.zone_victoire.center = pygame.mouse.get_pos()
 
     def Mise_A_Jour(self) -> None:
-        gagnants_cette_frame = 0
+        if self.suivre_curseur:
+            self.zone_victoire.center = pygame.mouse.get_pos()
 
+        gagnants_cette_frame = 0
         self.chrono_generation += 1
-        self.affichage_chrono = self.police_chrono.render(str((self.chrono_generation//6)/10),True,(0,0,255))
-        self.affichage_gagnants = self.police_ecriture.render("Gagnants : " + str(self.nb_gagnants),True,(0,0,255))
-        self.affichage_generation = self.police_ecriture.render("Generation : " + str(self.generation),True,(0,0,255))
-        self.affichage_montrer_que_le_meilleur = self.police_ecriture.render("Montrer que le meilleur",True,(255,0,0))
+        self.__Mise_A_Jour_Ecriture()
 
         for _ in range(self.nb_individus):
             individu = self.population.Defiler()
-            individu.Mise_A_Jour()
+            touche_zone_victoire = Collision(individu.rect, self.zone_victoire)
+            individu.Mise_A_Jour(self.zone_victoire.centerx - individu.rect.centerx, self.zone_victoire.centery - individu.rect.centery, touche_zone_victoire)
             if not individu.mort:
-                if Collision(individu.rect, self.zone_victoire):
+                if touche_zone_victoire:
                     gagnants_cette_frame += 1
                 self.population.Enfiler(individu)
         
@@ -65,53 +67,90 @@ class Monde:
             individu = self.population.Defiler()
             individu.Afficher(fenetre)
             self.population.Enfiler(individu)
-
-        fenetre.blit(self.affichage_gagnants,(RESOLUTION_X()//24, 36))
-        fenetre.blit(self.affichage_chrono,(RESOLUTION_X()//2-36, 36))
-        fenetre.blit(self.affichage_generation, (RESOLUTION_X()*7/9, 36))
-        if self.montrer_que_le_meilleur:
-            fenetre.blit(self.affichage_montrer_que_le_meilleur, (RESOLUTION_X()//24, RESOLUTION_Y()-36))
+        self.__Affichage_Ecriture(fenetre)
 
     def Nouvelle_Generation(self) -> None:
         l = []
         while not self.population.est_vide():
             l.append(self.population.Defiler())
-            
-        l.sort(key=self.Distance_a_zone_victoire)
+        self.population = File()
+        l.sort(key=self.__Distance_a_zone_victoire)
 
         if self.montrer_que_le_meilleur:
-            self.population.Enfiler(l[0].Cloner())
+            self.population.Enfiler(l[0])
+            self.nb_individus = 1
 
-        while len(self.population) < self.nb_individus_ref:
-            for male in range(0,6):
-                for femelle in range(male,20):
-                    nouveau = Croisement_individus(l[male], l[femelle])
-                    if self.montrer_que_le_meilleur :
-                        nouveau.rect.width = 0
-                    self.population.Enfiler(nouveau)
+        else:
+            if self.nb_individus == 1:
+                return self.__Reset()
+            nb_survivants = self.nb_gagnants if self.nb_gagnants >= 10 else self.nb_individus_ref//100
+            while len(self.population) < self.nb_individus_ref:
+                for male in range(0,nb_survivants):
+                    if len(self.population) >= self.nb_individus_ref: break
+                    for femelle in range(male,nb_survivants):
+                        if len(self.population) >= self.nb_individus_ref: break
+                        nouveau = Croisement_individus(l[male], l[femelle])
+                        self.population.Enfiler(nouveau)
+            self.nb_individus = self.nb_individus_ref
 
-        self.nb_individus = self.nb_individus_ref
         self.chrono_generation = 0
         self.generation += 1
 
-    def Distance_a_zone_victoire(self, a):
+#__________________________________privé_______________________________________________________________________________
+
+    def __Reset(self) -> None:
+        self.population = File()
+        NB_COEFFICIENTS_NEURONE = 7
+        for _ in range(self.nb_individus_ref):
+            neurone_hor = Neurone([uniform(-1,1) for _ in range(NB_COEFFICIENTS_NEURONE)])
+            neurone_ver = Neurone([uniform(-1,1) for _ in range(NB_COEFFICIENTS_NEURONE)])
+        
+            p = Individu(neurone_hor, neurone_ver, (randint(0,255),randint(0,255),randint(0,255)))
+            self.population.Enfiler(p)
+        self.generation = 1
+        self.chrono_generation = 0
+
+    def __Mise_A_Jour_Ecriture(self) -> None:
+        self.affichage_chrono = self.police_chrono.render(str((self.chrono_generation//6)/10),True,(0,0,255))
+        self.affichage_gagnants = self.police_ecriture.render("Gagnants : " + str(self.nb_gagnants),True,(0,0,255))
+        self.affichage_generation = self.police_ecriture.render("Generation : " + str(self.generation),True,(0,0,255))
+
+    def __Affichage_Ecriture(self, fenetre) -> None:
+        fenetre.blit(self.affichage_generation, (RESOLUTION_X()*7/9, 36))
+        fenetre.blit(self.affichage_gagnants,(RESOLUTION_X()//24, 36))
+        
+        
+        if self.montrer_que_le_meilleur:
+            fenetre.blit(self.affichage_montrer_que_le_meilleur, (RESOLUTION_X()//24, RESOLUTION_Y()-36))
+        else:
+            fenetre.blit(self.affichage_chrono,(RESOLUTION_X()//2-36, 36))
+
+    def __Distance_a_zone_victoire(self, a):
         return Distance_rects(a.rect, self.zone_victoire)
 
-def Croisement_individus(a:Individu, b:Individu) -> Individu:
-    #On croise chaque chromosome des 2 individus pour en creer un nouveau
+#_________________________________________sortie_de_classe_____________________________________________________________________________________
 
-    nouv_p_gauche = Croisement_chromosomes(a.p_gauche, b.p_gauche)
-    nouv_p_droite = Croisement_chromosomes(a.p_droite, b.p_droite)
-    nouv_p_haut = Croisement_chromosomes(a.p_haut, b.p_haut)
-    nouv_p_bas = Croisement_chromosomes(a.p_bas, b.p_bas)
-    nouv_p_stop = Croisement_chromosomes(a.p_stop, b.p_stop)
-    nouv_vitesse_max = Croisement_chromosomes(a.vitesse_max, b.vitesse_max)
-    nouv_taux_decision = Croisement_chromosomes(a.taux_decision, b.taux_decision)
-    if nouv_taux_decision > 60 : nouv_taux_decision = 60
-    if nouv_taux_decision < 20 : nouv_taux_decision = 20
+
+#A faire : les coefficients pris de chaque neurone de chaque individu sont coupés a partir de la moitié.
+#Faire que ça coupe à un endroit aléatoire, et que donc ça prenne un nombre aléatoire de coeffs de chaque neurone.
+def Croisement_individus(a:Individu, b:Individu) -> Individu:
+    neurones_b = [b.neurone_horizontal, b.neurone_vertical]
+    neurones_a = [a.neurone_horizontal, a.neurone_vertical]
+    nouveaux_neurones = []
+    for i in range(len(neurones_a)):
+        n_a = neurones_a[i]
+        n_b = neurones_b[i]
+        nouv_coefficients = []
+        for coef in range(n_a.nb_coefficients -1 ):
+            if coef <= n_a.nb_coefficients // 2:
+                nouv_coefficients.append(n_a.coefficients[coef])
+            else:
+                nouv_coefficients.append(n_b.coefficients[coef])
+        nouveaux_neurones.append(Neurone(nouv_coefficients))
+
     nouv_couleur = ((a.couleur[0] + b.couleur[0]) // 2, (a.couleur[1] + b.couleur[1]) // 2, (a.couleur[2] + b.couleur[2]) // 2)
 
-    return Individu(nouv_p_gauche, nouv_p_droite, nouv_p_haut, nouv_p_bas, nouv_p_stop, nouv_vitesse_max, nouv_taux_decision, nouv_couleur)
+    return Individu(nouveaux_neurones[0], nouveaux_neurones[1], nouv_couleur)
 
 def Croisement_chromosomes(a, b):
     if randint(0,1) == 1: return Croisement_chromosomes_v2(a, b)
