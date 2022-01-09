@@ -3,6 +3,7 @@ from random import uniform
 
 import pygame
 from neurone import Neurone
+from niveaux import ObtenirNiveaux
 
 from noeud_file import File
 from ModuleUtile import Collision, Distance_rects
@@ -13,12 +14,17 @@ from resolution import RESOLUTION_X, RESOLUTION_Y
 class Monde:
     #La classe Monde met en lien tous les différents éléments du jeu et les gère : la file d'individus, les zones de texte, la zone de victoire etc
     def __init__(self) -> None:
-        self.nb_individus_ref = 100
+        self.nb_individus_ref = 200
         self.nb_individus = self.nb_individus_ref
 
         #Polices d'écriture, utilisées pour afficher des textes à l'écran
         self.police_ecriture = pygame.font.SysFont(None,48)
         self.police_chrono = pygame.font.SysFont(None,72)
+
+        self.zone_victoire = ObtenirNiveaux()[0].zone_victoire
+        self.obstacles = ObtenirNiveaux()[0].obstacles
+        #Numero (index de la liste d'ObtenirNiveaux()) du niveau actuel
+        self.id_niveau_actuel = 0
 
         #Création de la file de population dans la fonction __Reset()
         #Le programme contient une population d'Individus (voir classe Individu) qui sont gérés depuis le Monde
@@ -34,7 +40,6 @@ class Monde:
         self.montrer_que_le_meilleur:bool = False
         self.affichage_montrer_que_le_meilleur = self.police_ecriture.render("Montrer que le meilleur",True,(255,0,0))
 
-        self.zone_victoire = pygame.Rect(randint(0,RESOLUTION_X()-128), randint(0,RESOLUTION_Y()-128), 128,128)
 
         #Est ce que la zone verte de victoire doit suivre la souris
         self.suivre_curseur = False
@@ -66,7 +71,14 @@ class Monde:
         #Pour itérer à travers une file, on Defile chaque élément (chaque individu) un à un, on lance sa fonction Mise_A_Jour puis on le fait revenir à la fin de la file
         for _ in range(self.nb_individus):
             individu = self.population.Defiler()
-            individu.Mise_A_Jour(self.zone_victoire.centerx - individu.rect.centerx, self.zone_victoire.centery - individu.rect.centery)
+            cogne = False
+            for o in self.obstacles:
+                if Collision(individu.rect, o):
+                    individu.rect.left = individu.position_frame_precedente[0]
+                    individu.rect.top = individu.position_frame_precedente[1]
+                    cogne = True
+            individu.Mise_A_Jour(self.zone_victoire.centerx - individu.rect.centerx, self.zone_victoire.centery - individu.rect.centery, cogne)
+            
             #Si l'individu en question est mort on ne l'ajoute pas a la file, il sera récupéré par le GC a la frame suivante
             if not individu.mort:
                 #Si l'individu est dans la zone de victoire, on incrémente le nombre de gagnants
@@ -95,6 +107,9 @@ class Monde:
             individu = self.population.Defiler()
             individu.Afficher(fenetre)
             self.population.Enfiler(individu)
+
+        for o in self.obstacles:
+            pygame.draw.rect(fenetre, (0,0,255), o, width=0)
 
         #Suite de la fonction pour afficher les textes, tout ça est séparé dans une fonction annexe pour pas polluer 
         self.__Affichage_Ecriture(fenetre)
@@ -154,6 +169,17 @@ class Monde:
         self.chrono_generation = 0
         self.generation += 1
 
+        if self.nb_gagnants >= self.nb_individus_ref * 4/5:
+            if self.id_niveau_actuel < len(ObtenirNiveaux()) - 1:
+                self.id_niveau_actuel += 1
+                self.__Reset()
+            else:
+                self.id_niveau_actuel = len(ObtenirNiveaux())-1 
+                self.population = File()
+                self.population.Enfiler(l[0])
+                self.nb_individus = 1
+                self.montrer_que_le_meilleur = True
+
 #__________________________________privé_______________________________________________________________________________
 
     def __Reset(self) -> None:
@@ -161,7 +187,7 @@ class Monde:
         self.population = File()
 
         #Car chaque neurone prend en compte deux paramètres, donc a deux coefficients
-        NB_COEFFICIENTS_NEURONE = 2
+        NB_COEFFICIENTS_NEURONE = 3
         for _ in range(self.nb_individus_ref):
             #On crée deux neurones avec des coefficients absolument aléatoires
             neurone_hor = Neurone([uniform(-1,1) for _ in range(NB_COEFFICIENTS_NEURONE)])
@@ -173,6 +199,9 @@ class Monde:
 
         self.generation = 1
         self.chrono_generation = 0
+
+        self.zone_victoire = ObtenirNiveaux()[self.id_niveau_actuel].zone_victoire
+        self.obstacles = ObtenirNiveaux()[self.id_niveau_actuel].obstacles
 
     def __Mise_A_Jour_Ecriture(self) -> None:
         #Suite de la fonction mise à jour destinée uniquement pour les textes

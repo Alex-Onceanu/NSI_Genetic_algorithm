@@ -21,7 +21,7 @@ class App:
         #Boucle principale du programme
         while self.doit_continuer:
             #On fait 60 * 10 soit 600 boucles (donc 10 secondes) à chaque génération, avant d'en générer une nouvelle 
-            for _ in range(self.FPS * 10):
+            for _ in range(self.FPS * 15):
                 if not self.doit_continuer: break
 
                 #Les 3 fonctions les plus importantes de ce programme : elles sont appelées successivement à chaque frame

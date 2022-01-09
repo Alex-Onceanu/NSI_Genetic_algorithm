@@ -20,15 +20,21 @@ class Individu:
         #Un rect est une structure de pygame qui contient simplement une position (x ; y) et une taille (longueur et largeur)
         #C'est ce rect qui sera affiché à la fin de chaque frame, donc la position de l'individu est ici
         self.rect = pygame.Rect(200,384,18,18)
+        #Sauvegarde de l'ancienne position de l'individu, sert pour les collisions
+        self.position_frame_precedente:tuple = (self.rect.left, self.rect.top)
 
         #A la fin de chaque Mise_A_Jour, on ajoute à la position de l'individu sa vitesse x et y
         self.vitesse:list = [0,0]
 
         self.mort = False
 
-    def Mise_A_Jour(self, pos_zone_victoire_x:int, pos_zone_victoire_y:int) -> None:
+    def Mise_A_Jour(self, pos_zone_victoire_x:int, pos_zone_victoire_y:int, cogne) -> None:
+        #On sauvegarde l'ancienne position, l'individu y revient s'il se mange un mur
+        self.position_frame_precedente = (self.rect.left, self.rect.top)
+
         #A chaque frame, l'individu prend une décision : en fonction de la distance le séparant de la zone de victoire il va se donner une certaine vitesse x et y
-        self.__Decision(pos_zone_victoire_x, pos_zone_victoire_y)
+        
+        self.__Decision(pos_zone_victoire_x, pos_zone_victoire_y, int(cogne)*1000)
 
         #On ajoute sa vitesse à sa position, pour obtenir sa nouvelle position
         #La vitesse est comprise entre [-2, -2] (vers haut-gauche) et [2, 2] (vers bas-droite)
@@ -42,9 +48,9 @@ class Individu:
         pygame.draw.rect(fenetre, self.couleur, self.rect, width= 0)
 #________________________________privé________________________________________________
 
-    def __Decision(self, distance_zone_victoire_x:int, distance_zone_victoire_y:int) -> tuple:
+    def __Decision(self, distance_zone_victoire_x:int, distance_zone_victoire_y:int, cogne) -> tuple:
         #L'individu a comme paramètre sa distance (x et y) au centre de la zone de victoire  
-        donnees:list = [distance_zone_victoire_x, distance_zone_victoire_y]
+        donnees:list = [distance_zone_victoire_x, distance_zone_victoire_y, cogne]
         
         #Il va transmettre ces données à ses neurones, qui vont renvoyer un nombre float compris entre -infini et +infini
         #Ce nombre est la nouvelle vitesse de l'individu (en la gardant entre -2 et 2) à chaque décision
@@ -65,7 +71,7 @@ class Individu:
         if self.rect.right < 0 or self.rect.left > RESOLUTION_X() or self.rect.bottom < 0 or self.rect.top > RESOLUTION_Y():
             self.mort = True
 
-    def __clampBorder2(self) -> None:
+    def __clampBorder(self) -> None:
         if self.rect.left <= 0 or self.rect.right >= RESOLUTION_X() or self.rect.top <= 0 or self.rect.bottom >= RESOLUTION_Y():
             self.rect.left -= self.vitesse[0]
             self.rect.top -= self.vitesse[1]
