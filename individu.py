@@ -1,7 +1,6 @@
 import pygame
 
 from ModuleUtile import Clamp
-from resolution import RESOLUTION_X, RESOLUTION_Y
 from neurone import Neurone
 class Individu:
     #Chaque individu est un petit carré coloré à l'écran qui doit savoir prendre une décision et décider d'où aller
@@ -20,7 +19,8 @@ class Individu:
         #Un rect est une structure de pygame qui contient simplement une position (x ; y) et une taille (longueur et largeur)
         #C'est ce rect qui sera affiché à la fin de chaque frame, donc la position de l'individu est ici
         self.rect = pygame.Rect(200,384,18,18)
-        #Sauvegarde de l'ancienne position de l'individu, sert pour les collisions
+        #Sauvegarde de l'ancienne position de l'individu, sert pour les collisions (voir gestion des collisions)
+        #Cette sauvegarde se fait a chaque appel de Mise_A_Jour, et l'individu est renvoyé à sa sauvegarde en cas de collision
         self.position_frame_precedente:tuple = (self.rect.left, self.rect.top)
 
         #A la fin de chaque Mise_A_Jour, on ajoute à la position de l'individu sa vitesse x et y
@@ -33,7 +33,8 @@ class Individu:
         self.position_frame_precedente = (self.rect.left, self.rect.top)
 
         #A chaque frame, l'individu prend une décision : en fonction de la distance le séparant de la zone de victoire il va se donner une certaine vitesse x et y
-        
+        #cogne est une information supplémentaire qu'il transmet a ses neurones : 1000 si l'individu touche un obstacle, sinon 0
+        #(1000 car les autres données sont entre 0 et RESOLUTION_X(), donc si on ajoute juste 1 ça n'aura aucun impact)
         self.__Decision(pos_zone_victoire_x, pos_zone_victoire_y, int(cogne)*1000)
 
         #On ajoute sa vitesse à sa position, pour obtenir sa nouvelle position
@@ -41,7 +42,6 @@ class Individu:
         #Mais peut très bien être par exemple [0.5, 0] (vers droite lentement)
         self.rect.left += self.vitesse[0]
         self.rect.top += self.vitesse[1]
-        #self.__clampBorder()
 
     def Afficher(self, fenetre) -> None:
         #A la fin de chaque frame, on affiche l'individu a sa position en fonction de son rect
@@ -49,7 +49,7 @@ class Individu:
 #________________________________privé________________________________________________
 
     def __Decision(self, distance_zone_victoire_x:int, distance_zone_victoire_y:int, cogne) -> tuple:
-        #L'individu a comme paramètre sa distance (x et y) au centre de la zone de victoire  
+        #L'individu a comme paramètre sa distance (x et y) au centre de la zone de victoire et s'il touche un obstacle
         donnees:list = [distance_zone_victoire_x, distance_zone_victoire_y, cogne]
         
         #Il va transmettre ces données à ses neurones, qui vont renvoyer un nombre float compris entre -infini et +infini
@@ -64,20 +64,7 @@ class Individu:
         activation:float = self.neurone_vertical.Activation(donnees)
         self.vitesse[1] = activation
         self.vitesse[1] = Clamp(self.vitesse[1], -self.vitesse_max, self.vitesse_max)
-
-
-
-    def __clampBorder2(self) -> None:
-        if self.rect.right < 0 or self.rect.left > RESOLUTION_X() or self.rect.bottom < 0 or self.rect.top > RESOLUTION_Y():
-            self.mort = True
-
-    def __clampBorder(self) -> None:
-        if self.rect.left <= 0 or self.rect.right >= RESOLUTION_X() or self.rect.top <= 0 or self.rect.bottom >= RESOLUTION_Y():
-            self.rect.left -= self.vitesse[0]
-            self.rect.top -= self.vitesse[1]
-
-    
-    
+        
     def Cloner(self):
         #Renvoie un individu identique à celui-ci
         return Individu(self.neurone_horizontal.Cloner(), self.neurone_vertical.Cloner(), self.couleur)

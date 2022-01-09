@@ -9,6 +9,7 @@ class App:
         #On va faire 60 frames à chaque seconde (60 FPS), donc la boucle principale est répétée 60 fois à chaque seconde
         self.FPS = 60
         self.doit_continuer = True
+        self.pause = False
 
         #Initialisation de pygame et de la fenêtre, etc
         pygame.init()
@@ -22,13 +23,21 @@ class App:
         while self.doit_continuer:
             #On fait 60 * 10 soit 600 boucles (donc 10 secondes) à chaque génération, avant d'en générer une nouvelle 
             for _ in range(self.FPS * 15):
+                while self.pause:
+                    #Si le jeu est en pause il faut quand même vérifier si l'utilisateur rappuie sur pause ou sur quitter
+                    if not self.doit_continuer: break
+                    self.Demande_Evenements()
+                    #Et il faut quand même que la fenêtre soit fluide, sinon on a l'impression que le jeu a planté
+                    pygame.display.flip()
+                    self.chrono.tick(self.FPS)
+
                 if not self.doit_continuer: break
 
                 #Les 3 fonctions les plus importantes de ce programme : elles sont appelées successivement à chaque frame
                 # 1) On gère les appuis de touches de clavier (évenements) à partir de la liste d'évenements donnée par pygame
                 # 2) On actualise le monde et chaque individu, tous les calculs et décisions sont faites là
                 # 3) On affiche tous les éléments graphiques (individus, rects, textes..)
-
+                
                 self.monde.Gerer_Evenements(self.Demande_Evenements())
                 self.monde.Mise_A_Jour()
                 self.monde.Afficher(self.fenetre)
@@ -61,6 +70,10 @@ class App:
             #Si l'utilisateur appuie sur la touche ECHAP, quitter le jeu
             if evenement.type == pygame.KEYDOWN and evenement.key == pygame.K_ESCAPE:
                 self.doit_continuer = False
+                break
+            #Si l'utilisateur appuie sur la touche espace, mettre le jeu en pause
+            if evenement.type == pygame.KEYDOWN and evenement.key == pygame.K_SPACE:
+                self.pause = not self.pause
                 break
 
         #On retransmet cette liste d'évenements au monde qui pourra itérer aussi

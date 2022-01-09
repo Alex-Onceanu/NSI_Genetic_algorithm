@@ -1,12 +1,20 @@
 from typing import List
 from pygame import Rect
 
+#Ici sont les données concernant les "niveaux" : la difficulté doit augmenter pour les individus, et de plus en plus
+#d'obstacles sont placés à mesure qu'ils réussissent à arriver dans la zone de victoire.
+
 class Niveau:
+    #Chaque niveau est donc juste une structure ayant une zone de victoire (car chaque niveau la place différemment)
+    #Et une liste d'obstacles, qui sont aussi des pygame.Rect
+    #Ces obstacles sont affichés à l'écran à chaque frame, et les individus ne peuvent pas les traverser
     def __init__(self, __zone_victoire:Rect, __obstacles:List[Rect]) -> None:
         self.zone_victoire = __zone_victoire
         self.obstacles = __obstacles
 
 def ObtenirNiveaux() -> List[Niveau]:
+    #Renvoie la liste de tous les niveaux du jeu, c'est donc une List[Niveau]
+    #Permet donc de faire une "progression" et d'expérimenter le comportement des individus
     return [
         Niveau(Rect(800, 200, 128, 128), []),
         Niveau(Rect(864, 264, 64, 64), [Rect(600,200,10,400), Rect(800,300,10,400)]),

@@ -20,7 +20,9 @@ class Monde:
         #Polices d'écriture, utilisées pour afficher des textes à l'écran
         self.police_ecriture = pygame.font.SysFont(None,48)
         self.police_chrono = pygame.font.SysFont(None,72)
-
+        
+        #la fonction ObtenirNiveaux() renvoie une liste de Niveaux, contenant la zone et les obstacles a utiliser
+        #self.obstacles est une liste de pygame.Rect, où chaque Rect est un obstacle, on pourra donc itérer dans cette liste pour afficher chaque obstacle
         self.zone_victoire = ObtenirNiveaux()[0].zone_victoire
         self.obstacles = ObtenirNiveaux()[0].obstacles
         #Numero (index de la liste d'ObtenirNiveaux()) du niveau actuel
@@ -57,7 +59,7 @@ class Monde:
                 self.zone_victoire.center = pygame.mouse.get_pos()
 
     def Mise_A_Jour(self) -> None:
-        #Ce qui est différent d'une frame à l'autre, toutes les actualisations se font ici
+        #Ce qui est différent d'une frame à l'autre; toutes les actualisations se font ici
 
         #Si le mode "suivre curseur" est activé la zone de victoire va a l'emplacement de la souris
         if self.suivre_curseur:
@@ -71,12 +73,9 @@ class Monde:
         #Pour itérer à travers une file, on Defile chaque élément (chaque individu) un à un, on lance sa fonction Mise_A_Jour puis on le fait revenir à la fin de la file
         for _ in range(self.nb_individus):
             individu = self.population.Defiler()
-            cogne = False
-            for o in self.obstacles:
-                if Collision(individu.rect, o):
-                    individu.rect.left = individu.position_frame_precedente[0]
-                    individu.rect.top = individu.position_frame_precedente[1]
-                    cogne = True
+
+            #On verifie ici si l'individu touche un obstacle
+            cogne = self.__Gerer_Collisions(individu)
             individu.Mise_A_Jour(self.zone_victoire.centerx - individu.rect.centerx, self.zone_victoire.centery - individu.rect.centery, cogne)
             
             #Si l'individu en question est mort on ne l'ajoute pas a la file, il sera récupéré par le GC a la frame suivante
@@ -108,6 +107,7 @@ class Monde:
             individu.Afficher(fenetre)
             self.population.Enfiler(individu)
 
+        #On affiche tous les obstacles
         for o in self.obstacles:
             pygame.draw.rect(fenetre, (0,0,255), o, width=0)
 
@@ -142,10 +142,10 @@ class Monde:
                 #Si le mode "montrer que le meilleur" est désactivé après avoir été activé, on réinitialise la population.
                 return self.__Reset()
 
-            #S'il y a plus de 14 individus ayant fini la génération dans la zone de victoire, on ne garde qu'eux et on tue tous les autres
-            #Si c'est pas le cas, on prend les 14 plus proches du centre de la zone
-            #Pourquoi 14 ? parce que 14 + 13 + 12 + 11 + ... + 1 = 105 donc presque 100, et on veut 100 individus 
-            nb_survivants = self.nb_gagnants if self.nb_gagnants >= 14 else 14
+            #S'il y a plus de 19 individus ayant fini la génération dans la zone de victoire, on ne garde qu'eux et on tue tous les autres
+            #Si c'est pas le cas, on prend les 19 plus proches du centre de la zone
+            #Pourquoi 19 ? parce que 19 + 18 + 17 + 16 + ... + 1 = 204 donc presque 200, et on veut 200 individus 
+            nb_survivants = self.nb_gagnants if self.nb_gagnants >= 19 else 19
 
             while len(self.population) < self.nb_individus_ref:
                 #Les survivants se reproduisent jusqu'à ce que la population arrive à 1000 et que donc on ait une nouvelle génération complète
@@ -169,11 +169,13 @@ class Monde:
         self.chrono_generation = 0
         self.generation += 1
 
+        #Si 80% des individus sont dans la zone, on passe au niveau suivant en incrémentant id_niveau_actuel
         if self.nb_gagnants >= self.nb_individus_ref * 4/5:
             if self.id_niveau_actuel < len(ObtenirNiveaux()) - 1:
                 self.id_niveau_actuel += 1
                 self.__Reset()
             else:
+                #Ce else s'active si on est arrivés au dernier niveau, auquel cas le mode "montrer que le meilleur" est activé
                 self.id_niveau_actuel = len(ObtenirNiveaux())-1 
                 self.population = File()
                 self.population.Enfiler(l[0])
@@ -200,6 +202,7 @@ class Monde:
         self.generation = 1
         self.chrono_generation = 0
 
+        #Les obstacles et la zone sont mis à jour en fonction de l'index du niveau actuel
         self.zone_victoire = ObtenirNiveaux()[self.id_niveau_actuel].zone_victoire
         self.obstacles = ObtenirNiveaux()[self.id_niveau_actuel].obstacles
 
@@ -218,6 +221,22 @@ class Monde:
             fenetre.blit(self.affichage_montrer_que_le_meilleur, (RESOLUTION_X()//24, RESOLUTION_Y()-36))
         else:
             fenetre.blit(self.affichage_chrono,(RESOLUTION_X()//2-36, 36))
+
+    def __Gerer_Collisions(self, individu) -> bool:
+        #Si l'individu touche un obstacle on l'empêche d'avancer et on renvoie True
+
+        #Pour chaque individu on vérifie s'il touche un obstacle
+        #cogne vaut True si l'individu est en collision avec au moins un obstacle
+        cogne = False
+        for o in self.obstacles:
+            if Collision(individu.rect, o):
+                #Chaque individu a un attribut position_frame_precedente qui est une sauvegarde de son ancienne position
+                #Il suffit de le faire revenir à cette ancienne position en cas de collision pour "l'arrêter" 
+                individu.rect.left = individu.position_frame_precedente[0]
+                individu.rect.top = individu.position_frame_precedente[1]
+                cogne = True
+                break
+        return cogne
 
     def __Distance_a_zone_victoire(self, a):
         #Fonction utilisée en tant que key pour le tri des individus
