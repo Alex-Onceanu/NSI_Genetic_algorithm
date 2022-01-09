@@ -34,7 +34,7 @@ class Individu:
 
         #A chaque frame, l'individu prend une décision : en fonction de la distance le séparant de la zone de victoire il va se donner une certaine vitesse x et y
         
-        self.__Decision(pos_zone_victoire_x, pos_zone_victoire_y, int(cogne)*1000)
+        self.__Decision(pos_zone_victoire_x/RESOLUTION_X(), pos_zone_victoire_y/RESOLUTION_Y(), int(cogne))
 
         #On ajoute sa vitesse à sa position, pour obtenir sa nouvelle position
         #La vitesse est comprise entre [-2, -2] (vers haut-gauche) et [2, 2] (vers bas-droite)
@@ -58,11 +58,11 @@ class Individu:
         #Et seuls les individus ayant "compris" qu'il faut se rapprocher de la zone survivront
         
         activation:float = self.neurone_horizontal.Activation(donnees)
-        self.vitesse[0] = activation
+        self.vitesse[0] += activation
         self.vitesse[0] = Clamp(self.vitesse[0], -self.vitesse_max, self.vitesse_max)
 
         activation:float = self.neurone_vertical.Activation(donnees)
-        self.vitesse[1] = activation
+        self.vitesse[1] += activation
         self.vitesse[1] = Clamp(self.vitesse[1], -self.vitesse_max, self.vitesse_max)
 
 
